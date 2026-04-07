@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import ThemeToggle from "@/components/ThemeToggle";
+import { createClient } from "@/lib/supabase/client";
 
 type NoteListItem = {
   id: string;
@@ -58,6 +59,24 @@ export default function NotesLayout({ children }: { children: React.ReactNode })
     const t = setTimeout(() => load(q), 300);
     return () => clearTimeout(t);
   }, [q, load]);
+
+  // Realtime: refresh list when any note changes (other devices)
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel("notes-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "notes" },
+        () => {
+          load(q);
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [load, q]);
 
   // Auto-close sidebar on mobile when route changes
   useEffect(() => {
