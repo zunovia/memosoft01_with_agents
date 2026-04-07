@@ -82,6 +82,7 @@ export default function CommandPalette() {
       { id: "notes", title: "ノート一覧", hint: "go", run: () => router.push("/notes") },
       { id: "graph", title: "3Dグラフ", hint: "go", run: () => router.push("/graph") },
       { id: "space", title: "スペースビュー", hint: "go", run: () => router.push("/space") },
+      { id: "chat", title: "ノートとチャット", hint: "ai", run: () => router.push("/chat") },
       { id: "settings", title: "設定", hint: "go", run: () => router.push("/settings") },
       {
         id: "export",
