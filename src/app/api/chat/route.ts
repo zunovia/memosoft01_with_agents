@@ -13,6 +13,12 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}));
   const question: string = typeof body.question === "string" ? body.question : "";
+  const history: { role: "user" | "assistant"; content: string }[] = Array.isArray(body.history)
+    ? body.history.filter(
+        (m: { role: string; content: string }) =>
+          (m.role === "user" || m.role === "assistant") && typeof m.content === "string"
+      )
+    : [];
   if (!question.trim()) return NextResponse.json({ error: "no question" }, { status: 400 });
 
   const { data: keyRow } = await supabase
@@ -70,6 +76,7 @@ export async function POST(req: Request) {
 回答にはノート内容を根拠として引用し、参照したノートのタイトルを「[出典: ノートタイトル]」として末尾に列挙してください。
 ノートに情報がない場合はその旨を正直に述べてください。日本語で回答してください。`,
     messages: [
+      ...history.slice(-10),
       {
         role: "user",
         content: `## 関連ノート\n\n${noteSection}\n\n## 質問\n${question}`,
