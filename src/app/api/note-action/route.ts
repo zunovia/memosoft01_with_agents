@@ -6,7 +6,7 @@ import { decrypt } from "@/lib/crypto";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-type Action = "summarize" | "expand" | "polish" | "translate-en" | "translate-ja" | "outline" | "continue";
+type Action = "summarize" | "expand" | "polish" | "translate-en" | "translate-ja" | "outline" | "continue" | "questions" | "flashcards";
 
 const PROMPTS: Record<Action, string> = {
   summarize: "次のノートを3〜5行のMarkdown箇条書きで要約してください。",
@@ -16,6 +16,8 @@ const PROMPTS: Record<Action, string> = {
   "translate-ja": "次のノートを自然な日本語に翻訳してください。Markdown構造は保持。",
   outline: "次のノートの内容から、Markdown見出し(##)とサブ箇条書きで論理的なアウトラインを生成してください。",
   continue: "次のノートの続きを、文体・トーン・形式を維持して自然に書き足してください。続きの本文のみを出力し、既存の内容は繰り返さないでください。",
+  questions: "次のノートを理解しているか確認するための質問を5問、Markdown番号付きリストで作成してください。",
+  flashcards: "次のノートの内容から学習用フラッシュカードを5〜10枚、Markdownで作成してください。形式: \"**Q:** 質問\\n**A:** 答え\" を空行で区切る。",
 };
 
 export async function POST(req: Request) {

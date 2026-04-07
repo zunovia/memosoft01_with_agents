@@ -492,7 +492,9 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
   const stats = useMemo(() => {
     const chars = content.length;
     const words = content.trim() ? content.trim().split(/\s+/).length : 0;
-    return { chars, words };
+    // Japanese ~500 chars/min, English ~200 wpm; pick larger
+    const minutes = Math.max(1, Math.round(Math.max(chars / 500, words / 200)));
+    return { chars, words, minutes };
   }, [content]);
 
   const renderedContent = useMemo(() => {
@@ -544,7 +546,7 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
             >{v === "edit" ? "編集" : v === "split" ? "分割" : "表示"}</button>
           ))}
         </div>
-        <span className="text-xs text-zinc-500 hidden sm:inline">{stats.chars}文字 / {stats.words}語</span>
+        <span className="text-xs text-zinc-500 hidden sm:inline">{stats.chars}文字 / {stats.words}語 / 約{stats.minutes}分</span>
         <span className="text-xs text-zinc-500">{saving ? "保存中..." : "保存済み"}</span>
         <button
           onClick={togglePin}
@@ -582,6 +584,8 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
                 { k: "polish", l: "✏️ 推敲" },
                 { k: "outline", l: "🗂 アウトライン" },
                 { k: "continue", l: "✍️ 続きを書く" },
+                { k: "questions", l: "❓ 質問生成" },
+                { k: "flashcards", l: "🃏 フラッシュカード" },
                 { k: "translate-en", l: "🌐 英訳" },
                 { k: "translate-ja", l: "🌐 和訳" },
               ].map((a) => (
