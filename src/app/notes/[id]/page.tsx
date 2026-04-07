@@ -12,6 +12,8 @@ import {
 } from "@codemirror/autocomplete";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
+import "highlight.js/styles/github-dark.css";
 
 type Note = {
   id: string;
@@ -298,7 +300,7 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
         )}
         {view !== "edit" && (
           <div className="overflow-y-auto p-4 prose prose-sm dark:prose-invert max-w-none">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{renderedContent}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>{renderedContent}</ReactMarkdown>
           </div>
         )}
       </div>
