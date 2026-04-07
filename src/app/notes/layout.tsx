@@ -18,6 +18,7 @@ export default function NotesLayout({ children }: { children: React.ReactNode })
   const [tagFilter, setTagFilter] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [templateMenu, setTemplateMenu] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -77,6 +78,42 @@ export default function NotesLayout({ children }: { children: React.ReactNode })
       const { note } = await res.json();
       router.push(`/notes/${note.id}`);
     }
+  }
+
+  const TEMPLATES: { name: string; title: string; content: string }[] = [
+    {
+      name: "📋 ミーティング",
+      title: `Meeting ${new Date().toISOString().slice(0, 10)}`,
+      content: `# ミーティング\n\n**日付:** ${new Date().toLocaleDateString()}\n**参加者:** \n\n## アジェンダ\n- \n\n## 議論\n- \n\n## 決定事項\n- \n\n## TODO\n- [ ] \n\n#meeting`,
+    },
+    {
+      name: "🚀 プロジェクト",
+      title: "Project: ",
+      content: `# プロジェクト名\n\n## 目的\n\n\n## ゴール\n- \n\n## マイルストーン\n- [ ] \n\n## リスク\n- \n\n## 関連\n- [[]]\n\n#project`,
+    },
+    {
+      name: "💡 ブレスト",
+      title: "Brainstorm: ",
+      content: `# ブレインストーミング\n\n**テーマ:** \n\n## アイデア\n- \n- \n- \n\n## 評価\n\n## 次のアクション\n- [ ] \n\n#brainstorm`,
+    },
+    {
+      name: "📚 読書メモ",
+      title: "Book: ",
+      content: `# 書名\n\n**著者:** \n**読了日:** ${new Date().toLocaleDateString()}\n\n## 要約\n\n\n## 印象的な引用\n> \n\n## 学び\n- \n\n## 関連\n- [[]]\n\n#book`,
+    },
+  ];
+
+  async function createFromTemplate(t: typeof TEMPLATES[number]) {
+    setTemplateMenu(false);
+    const res = await fetch("/api/notes", { method: "POST" });
+    if (!res.ok) return;
+    const { note } = await res.json();
+    await fetch(`/api/notes/${note.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: t.title, content: t.content }),
+    });
+    router.push(`/notes/${note.id}`);
   }
 
   async function openDailyNote() {
@@ -141,6 +178,24 @@ export default function NotesLayout({ children }: { children: React.ReactNode })
             className="px-2 py-1 text-sm border border-zinc-300 dark:border-zinc-700 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"
             title="今日のノート"
           >📅</button>
+          <div className="relative">
+            <button
+              onClick={() => setTemplateMenu((v) => !v)}
+              className="px-2 py-1 text-sm border border-zinc-300 dark:border-zinc-700 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              title="テンプレートから作成"
+            >📄</button>
+            {templateMenu && (
+              <div className="absolute right-0 top-full mt-1 z-20 w-48 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded shadow-lg">
+                {TEMPLATES.map((t) => (
+                  <button
+                    key={t.name}
+                    onClick={() => createFromTemplate(t)}
+                    className="block w-full text-left px-3 py-2 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  >{t.name}</button>
+                ))}
+              </div>
+            )}
+          </div>
           <button
             onClick={createNote}
             className="px-2 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
