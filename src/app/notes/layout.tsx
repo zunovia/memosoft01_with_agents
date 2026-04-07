@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import ThemeToggle from "@/components/ThemeToggle";
 
 type NoteListItem = {
   id: string;
@@ -166,6 +167,7 @@ export default function NotesLayout({ children }: { children: React.ReactNode })
           <Link href="/settings" className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline">Settings</Link>
           <span className="text-[10px] text-zinc-500 border border-zinc-300 dark:border-zinc-700 rounded px-1" title="クイックスイッチャー">⌘K</span>
         </div>
+        <div className="px-3 pt-2"><ThemeToggle /></div>
         <div className="p-2 flex gap-2">
           <input
             value={q}
