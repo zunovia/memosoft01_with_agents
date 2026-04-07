@@ -287,6 +287,12 @@ export default function NotesLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
       <main className="flex-1 overflow-hidden flex flex-col">{children}</main>
+      {/* Mobile FAB */}
+      <button
+        onClick={createNote}
+        className="md:hidden fixed bottom-5 right-5 z-30 w-14 h-14 rounded-full bg-blue-600 text-white text-2xl shadow-2xl hover:bg-blue-700 active:scale-95 transition"
+        aria-label="新規ノート"
+      >+</button>
     </div>
   );
 }
