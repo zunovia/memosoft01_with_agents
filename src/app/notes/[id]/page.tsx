@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import CodeMirror from "@uiw/react-codemirror";
 import { markdown } from "@codemirror/lang-markdown";
+import {
+  autocompletion,
+  type CompletionContext,
+  type CompletionResult,
+} from "@codemirror/autocomplete";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -27,7 +32,49 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
   const [backlinks, setBacklinks] = useState<Backlink[]>([]);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [allNotes, setAllNotes] = useState<{ id: string; title: string }[]>([]);
+  const [allTags, setAllTags] = useState<string[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    fetch("/api/notes")
+      .then((r) => r.json())
+      .then((j) => {
+        const ns: { id: string; title: string; tags?: string[] }[] = j.notes || [];
+        setAllNotes(ns.map((n) => ({ id: n.id, title: n.title })));
+        const tagSet = new Set<string>();
+        ns.forEach((n) => (n.tags || []).forEach((t) => tagSet.add(t)));
+        setAllTags([...tagSet].sort());
+      });
+  }, []);
+
+  const completionExtension = useCallback(() => {
+    const wikiSource = (ctx: CompletionContext): CompletionResult | null => {
+      const m = ctx.matchBefore(/\[\[([^\]\n]*)$/);
+      if (!m) return null;
+      const q = m.text.slice(2).toLowerCase();
+      return {
+        from: m.from + 2,
+        options: allNotes
+          .filter((n) => n.title.toLowerCase().includes(q))
+          .slice(0, 20)
+          .map((n) => ({ label: n.title, apply: n.title + "]]" })),
+      };
+    };
+    const tagSource = (ctx: CompletionContext): CompletionResult | null => {
+      const m = ctx.matchBefore(/#([\w\-ぁ-んァ-ヶ一-龠]*)$/);
+      if (!m || m.text.length < 1) return null;
+      const q = m.text.slice(1).toLowerCase();
+      return {
+        from: m.from + 1,
+        options: allTags
+          .filter((t) => t.toLowerCase().includes(q))
+          .slice(0, 20)
+          .map((t) => ({ label: t, apply: t })),
+      };
+    };
+    return autocompletion({ override: [wikiSource, tagSource] });
+  }, [allNotes, allTags]);
 
   useEffect(() => {
     let cancel = false;
@@ -101,7 +148,7 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
             value={content}
             height="100%"
             theme="dark"
-            extensions={[markdown()]}
+            extensions={[markdown(), completionExtension()]}
             onChange={(v) => {
               setContent(v);
               scheduleSave({ content: v });
