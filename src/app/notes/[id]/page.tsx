@@ -26,6 +26,7 @@ type Note = {
   tags: string[];
   updated_at: string;
   pinned?: boolean;
+  share_token?: string | null;
 };
 
 type Backlink = { id: string; title: string };
@@ -251,6 +252,27 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
     setSpeaking(true);
   }
 
+  async function toggleShare() {
+    if (!note) return;
+    if (note.share_token) {
+      await fetch(`/api/notes/${id}/share`, { method: "DELETE" });
+      setNote({ ...note, share_token: null });
+      alert("公開を停止しました");
+    } else {
+      const r = await fetch(`/api/notes/${id}/share`, { method: "POST" });
+      if (!r.ok) return;
+      const { token } = await r.json();
+      setNote({ ...note, share_token: token });
+      const url = `${window.location.origin}/share/${token}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        alert(`公開URLをコピーしました:\n${url}`);
+      } catch {
+        prompt("公開URL:", url);
+      }
+    }
+  }
+
   async function openHistory() {
     setHistoryOpen(true);
     const r = await fetch(`/api/notes/${id}/revisions`);
@@ -388,6 +410,11 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
           className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline"
           title="読み上げ"
         >{speaking ? "⏸" : "🔊"}</button>
+        <button
+          onClick={toggleShare}
+          className={`text-xs hover:underline ${note.share_token ? "text-green-600 dark:text-green-400" : "text-zinc-600 dark:text-zinc-400"}`}
+          title={note.share_token ? "公開中(クリックで停止)" : "公開URLを発行"}
+        >🔗</button>
         <button
           onClick={openHistory}
           className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline"
