@@ -13,6 +13,9 @@ type GraphNode = {
   group?: string;
   __color?: string;
   __threeObj?: unknown;
+  x?: number;
+  y?: number;
+  z?: number;
 };
 type GraphLink = { source: string; target: string };
 
@@ -34,6 +37,11 @@ type FGInstance = {
   resumeAnimation?: () => void;
   graphData: () => { nodes: GraphNode[]; links: GraphLink[] };
   refresh?: () => void;
+  cameraPosition?: (
+    pos: { x: number; y: number; z: number },
+    lookAt?: { x: number; y: number; z: number },
+    durationMs?: number
+  ) => void;
 };
 
 export default function GraphPage() {
@@ -42,6 +50,7 @@ export default function GraphPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showModal, setShowModal] = useState(false);
   const [labelsOn, setLabelsOn] = useState(true);
+  const [tagFilter, setTagFilter] = useState<string>("");
   const [vrSupported, setVrSupported] = useState(false);
   const [vrActive, setVrActive] = useState(false);
   const [vrError, setVrError] = useState<string | null>(null);
@@ -91,16 +100,57 @@ export default function GraphPage() {
     }
   }, []);
 
-  const data = useMemo(() => ({ nodes: [...nodes], links: [...links] }), [nodes, links]);
+  const allTags = useMemo(() => {
+    const s = new Set<string>();
+    nodes.forEach((n) => n.group && n.group !== "default" && s.add(n.group));
+    return [...s].sort();
+  }, [nodes]);
 
-  const toggleSelect = useCallback((id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const data = useMemo(() => {
+    if (!tagFilter) return { nodes: [...nodes], links: [...links] };
+    const allowed = new Set(nodes.filter((n) => n.group === tagFilter).map((n) => n.id));
+    return {
+      nodes: nodes.filter((n) => allowed.has(n.id)),
+      links: links.filter((l) => {
+        const s = typeof l.source === "string" ? l.source : (l.source as unknown as GraphNode).id;
+        const t = typeof l.target === "string" ? l.target : (l.target as unknown as GraphNode).id;
+        return allowed.has(s) && allowed.has(t);
+      }),
+    };
+  }, [nodes, links, tagFilter]);
+
+  // Fly camera to last selected node
+  const focusNode = useCallback((id: string) => {
+    const fg = fgRef.current;
+    if (!fg || !fg.cameraPosition) return;
+    const node = fg.graphData().nodes.find((n) => n.id === id);
+    if (!node || node.x == null || node.y == null || node.z == null) return;
+    const distance = 80;
+    const dist = Math.hypot(node.x, node.y, node.z) || 1;
+    const ratio = 1 + distance / dist;
+    fg.cameraPosition(
+      { x: node.x * ratio, y: node.y * ratio, z: node.z * ratio },
+      { x: node.x, y: node.y, z: node.z },
+      900
+    );
   }, []);
+
+  const toggleSelect = useCallback(
+    (id: string) => {
+      setSelected((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) {
+          next.delete(id);
+        } else {
+          next.add(id);
+          // fly camera to newly selected node
+          setTimeout(() => focusNode(id), 0);
+        }
+        return next;
+      });
+    },
+    [focusNode]
+  );
 
   const nodeThreeObject = useCallback((node: object) => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -255,6 +305,16 @@ export default function GraphPage() {
           />
           ラベル表示
         </label>
+        <select
+          value={tagFilter}
+          onChange={(e) => setTagFilter(e.target.value)}
+          className="px-2 py-1 text-xs rounded border border-zinc-700 bg-zinc-900 text-white"
+        >
+          <option value="">全タグ</option>
+          {allTags.map((t) => (
+            <option key={t} value={t}>#{t}</option>
+          ))}
+        </select>
         <span className="ml-auto text-sm">選択中: {selected.size}</span>
         <button
           disabled={selected.size === 0}

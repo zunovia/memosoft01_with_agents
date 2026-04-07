@@ -8,10 +8,11 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const q = url.searchParams.get("q");
+  const withSnippet = url.searchParams.get("snippet") === "1";
 
   let query = supabase
     .from("notes")
-    .select("id, title, updated_at, tags")
+    .select("id, title, updated_at, tags, content")
     .eq("user_id", user.id)
     .order("updated_at", { ascending: false })
     .limit(500);
@@ -22,7 +23,25 @@ export async function GET(req: Request) {
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ notes: data ?? [] });
+
+  const notes = (data ?? []).map((n) => {
+    const out: Record<string, unknown> = {
+      id: n.id,
+      title: n.title,
+      updated_at: n.updated_at,
+      tags: n.tags,
+    };
+    if (withSnippet && typeof n.content === "string") {
+      const stripped = n.content
+        .replace(/[#*`_~>\[\]]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      out.snippet = stripped.slice(0, 140);
+    }
+    return out;
+  });
+
+  return NextResponse.json({ notes });
 }
 
 export async function POST() {
