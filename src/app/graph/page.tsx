@@ -119,6 +119,19 @@ export default function GraphPage() {
     };
   }, [nodes, links, tagFilter]);
 
+  // Compute neighbors of selected nodes
+  const neighbors = useMemo(() => {
+    if (selected.size === 0) return new Set<string>();
+    const n = new Set<string>();
+    links.forEach((l) => {
+      const s = typeof l.source === "string" ? l.source : (l.source as unknown as GraphNode).id;
+      const t = typeof l.target === "string" ? l.target : (l.target as unknown as GraphNode).id;
+      if (selected.has(s)) n.add(t);
+      if (selected.has(t)) n.add(s);
+    });
+    return n;
+  }, [selected, links]);
+
   // Fly camera to last selected node
   const focusNode = useCallback((id: string) => {
     const fg = fgRef.current;
@@ -355,11 +368,25 @@ export default function GraphPage() {
           nodeLabel={(n: object) => (n as GraphNode).title}
           nodeAutoColorBy="group"
           nodeOpacity={0.95}
+          nodeColor={(n: object) => {
+            const node = n as GraphNode;
+            if (selected.size === 0) return node.__color || "#cbd5e1";
+            if (selected.has(node.id)) return "#60a5fa";
+            if (neighbors.has(node.id)) return node.__color || "#cbd5e1";
+            return "rgba(120,120,140,0.15)";
+          }}
           nodeRelSize={5}
           nodeVal={(n: object) => (selected.has((n as GraphNode).id) ? 8 : 2)}
           nodeThreeObject={labelsOn ? nodeThreeObject : undefined}
           nodeThreeObjectExtend={true}
-          linkColor={() => "rgba(180,180,200,0.4)"}
+          linkColor={(l: object) => {
+            const link = l as { source: GraphNode | string; target: GraphNode | string };
+            const s = typeof link.source === "string" ? link.source : link.source.id;
+            const t = typeof link.target === "string" ? link.target : link.target.id;
+            const active = selected.has(s) || selected.has(t);
+            if (selected.size === 0) return "rgba(180,180,200,0.4)";
+            return active ? "rgba(96,165,250,0.9)" : "rgba(180,180,200,0.08)";
+          }}
           linkOpacity={0.6}
           linkWidth={0.5}
           linkDirectionalParticles={2}
