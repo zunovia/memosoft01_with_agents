@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 const SHORTCUTS = [
   { key: "Ctrl/⌘ + K", desc: "クイックスイッチャー" },
+  { key: "Ctrl/⌘ + ⇧ + P", desc: "コマンドパレット" },
   { key: "Ctrl/⌘ + S", desc: "強制保存" },
   { key: "Ctrl/⌘ + E", desc: "ビュー切替 (分割/編集/表示)" },
   { key: "?", desc: "このヘルプ" },
