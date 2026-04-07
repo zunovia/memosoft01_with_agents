@@ -138,6 +138,13 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
     return { chars, words };
   }, [content]);
 
+  const renderedContent = useMemo(() => {
+    return content.replace(
+      /\[\[([^\]\n]+)\]\]/g,
+      (_, t) => `[${t}](/notes/wiki/${encodeURIComponent(t.trim())})`
+    );
+  }, [content]);
+
   const headings = useMemo(() => {
     const lines = content.split("\n");
     const out: { level: number; text: string; line: number }[] = [];
@@ -218,7 +225,7 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
         )}
         {view !== "edit" && (
           <div className="overflow-y-auto p-4 prose prose-sm dark:prose-invert max-w-none">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{renderedContent}</ReactMarkdown>
           </div>
         )}
       </div>
