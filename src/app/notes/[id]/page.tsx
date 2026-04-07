@@ -49,6 +49,7 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
   const [aiMenuOpen, setAiMenuOpen] = useState(false);
   const [aiResult, setAiResult] = useState<string | null>(null);
   const [aiRunning, setAiRunning] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -232,6 +233,22 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
     setSuggestedTags((prev) => prev.filter((t) => t !== tag));
   }
 
+  function toggleSpeak() {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    if (speaking) {
+      window.speechSynthesis.cancel();
+      setSpeaking(false);
+      return;
+    }
+    const text = `${title}。${content.replace(/[#*`_~>\[\]]/g, "")}`;
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = /[ぁ-んァ-ヶ一-龠]/.test(text) ? "ja-JP" : "en-US";
+    utter.onend = () => setSpeaking(false);
+    utter.onerror = () => setSpeaking(false);
+    window.speechSynthesis.speak(utter);
+    setSpeaking(true);
+  }
+
   async function duplicate() {
     const r = await fetch("/api/notes", { method: "POST" });
     if (!r.ok) return;
@@ -347,6 +364,11 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
             </div>
           )}
         </div>
+        <button
+          onClick={toggleSpeak}
+          className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline"
+          title="読み上げ"
+        >{speaking ? "⏸" : "🔊"}</button>
         <button
           onClick={duplicate}
           className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline"
