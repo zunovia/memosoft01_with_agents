@@ -90,6 +90,27 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
   }, []);
 
   const completionExtension = useCallback(() => {
+    const slashSource = (ctx: CompletionContext): CompletionResult | null => {
+      const m = ctx.matchBefore(/(?:^|\n)\/(\w*)$/);
+      if (!m) return null;
+      const today = new Date().toISOString().slice(0, 10);
+      const now = new Date().toLocaleTimeString();
+      return {
+        from: m.from + (m.text.startsWith("\n") ? 1 : 0),
+        options: [
+          { label: "/today", apply: today },
+          { label: "/now", apply: now },
+          { label: "/datetime", apply: new Date().toLocaleString() },
+          { label: "/h1", apply: "# " },
+          { label: "/h2", apply: "## " },
+          { label: "/todo", apply: "- [ ] " },
+          { label: "/table", apply: "| Col1 | Col2 |\n| --- | --- |\n| | |" },
+          { label: "/code", apply: "```\n\n```" },
+          { label: "/quote", apply: "> " },
+          { label: "/hr", apply: "---" },
+        ],
+      };
+    };
     const wikiSource = (ctx: CompletionContext): CompletionResult | null => {
       const m = ctx.matchBefore(/\[\[([^\]\n]*)$/);
       if (!m) return null;
@@ -114,7 +135,7 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
           .map((t) => ({ label: t, apply: t })),
       };
     };
-    return autocompletion({ override: [wikiSource, tagSource] });
+    return autocompletion({ override: [slashSource, wikiSource, tagSource] });
   }, [allNotes, allTags]);
 
   useEffect(() => {

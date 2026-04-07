@@ -4,6 +4,7 @@ import "./globals.css";
 import QuickSwitcher from "@/components/QuickSwitcher";
 import HelpModal from "@/components/HelpModal";
 import CommandPalette from "@/components/CommandPalette";
+import SwRegister from "@/components/SwRegister";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -50,6 +51,7 @@ export default function RootLayout({
         <QuickSwitcher />
         <HelpModal />
         <CommandPalette />
+        <SwRegister />
       </body>
     </html>
   );
