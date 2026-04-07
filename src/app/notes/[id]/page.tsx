@@ -31,6 +31,21 @@ type Note = {
 
 type Backlink = { id: string; title: string };
 
+type SpeechRecognitionLike = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onresult: ((e: SpeechRecognitionEventLike) => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+type SpeechRecognitionEventLike = {
+  resultIndex: number;
+  results: { isFinal: boolean; 0: { transcript: string } }[];
+};
+
 export default function NotePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
@@ -53,6 +68,8 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
   const [aiResult, setAiResult] = useState<string | null>(null);
   const [aiRunning, setAiRunning] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef<{ stop: () => void } | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [findOpen, setFindOpen] = useState(false);
   const [findText, setFindText] = useState("");
@@ -283,6 +300,45 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
       scheduleSave({ content: next });
     }
     setSuggestedTags((prev) => prev.filter((t) => t !== tag));
+  }
+
+  function toggleListen() {
+    if (listening) {
+      recognitionRef.current?.stop();
+      setListening(false);
+      return;
+    }
+    const w = window as unknown as {
+      SpeechRecognition?: new () => SpeechRecognitionLike;
+      webkitSpeechRecognition?: new () => SpeechRecognitionLike;
+    };
+    const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
+    if (!Ctor) {
+      alert("このブラウザは音声入力に対応していません");
+      return;
+    }
+    const rec = new Ctor();
+    rec.lang = "ja-JP";
+    rec.continuous = true;
+    rec.interimResults = false;
+    rec.onresult = (e: SpeechRecognitionEventLike) => {
+      let txt = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) txt += e.results[i][0].transcript;
+      }
+      if (txt) {
+        setContent((prev) => {
+          const next = prev + (prev.endsWith("\n") || !prev ? "" : " ") + txt;
+          scheduleSave({ content: next });
+          return next;
+        });
+      }
+    };
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    rec.start();
+    recognitionRef.current = rec;
+    setListening(true);
   }
 
   function toggleSpeak() {
@@ -517,6 +573,11 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
             </div>
           )}
         </div>
+        <button
+          onClick={toggleListen}
+          className={`text-xs hover:underline ${listening ? "text-red-600 dark:text-red-400" : "text-zinc-600 dark:text-zinc-400"}`}
+          title="音声入力"
+        >{listening ? "⏺" : "🎙"}</button>
         <button
           onClick={toggleSpeak}
           className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline"
