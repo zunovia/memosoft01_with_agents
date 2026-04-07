@@ -115,6 +115,21 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
     debounceRef.current = setTimeout(() => save(next), 800);
   }
 
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        save({ title, content });
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "e") {
+        e.preventDefault();
+        setView((v) => (v === "split" ? "preview" : v === "preview" ? "edit" : "split"));
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [save, title, content]);
+
   async function handleDelete() {
     if (!confirm("このノートを削除しますか?")) return;
     await fetch(`/api/notes/${id}`, { method: "DELETE" });

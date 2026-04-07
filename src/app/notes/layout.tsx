@@ -9,6 +9,7 @@ type NoteListItem = {
   title: string;
   updated_at: string;
   tags?: string[];
+  snippet?: string;
 };
 
 export default function NotesLayout({ children }: { children: React.ReactNode }) {
@@ -22,13 +23,28 @@ export default function NotesLayout({ children }: { children: React.ReactNode })
 
   const load = useCallback(async (query = "") => {
     setLoading(true);
-    const res = await fetch(`/api/notes${query ? `?q=${encodeURIComponent(query)}` : ""}`);
+    const params = new URLSearchParams();
+    if (query) {
+      params.set("q", query);
+      params.set("snippet", "1");
+    }
+    const res = await fetch(`/api/notes${params.toString() ? `?${params}` : ""}`);
     if (res.ok) {
       const json = await res.json();
       setNotes(json.notes);
     }
     setLoading(false);
   }, []);
+
+  function highlight(text: string, query: string) {
+    if (!query.trim()) return text;
+    const parts = text.split(new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi"));
+    return parts.map((p, i) =>
+      p.toLowerCase() === query.toLowerCase()
+        ? <mark key={i} className="bg-yellow-300 dark:bg-yellow-600 text-black dark:text-white px-0.5 rounded">{p}</mark>
+        : <span key={i}>{p}</span>
+    );
+  }
 
   useEffect(() => {
     load();
@@ -158,8 +174,11 @@ export default function NotesLayout({ children }: { children: React.ReactNode })
                     href={`/notes/${n.id}`}
                     className={`block px-3 py-2 text-sm border-b border-zinc-200/50 dark:border-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-900 ${active ? "bg-zinc-200 dark:bg-zinc-800" : ""}`}
                   >
-                    <div className="truncate font-medium">{n.title || "Untitled"}</div>
+                    <div className="truncate font-medium">{highlight(n.title || "Untitled", q)}</div>
                     <div className="text-[10px] text-zinc-500">{new Date(n.updated_at).toLocaleString()}</div>
+                    {n.snippet && q && (
+                      <div className="text-[10px] text-zinc-600 dark:text-zinc-400 mt-1 line-clamp-2">{highlight(n.snippet, q)}</div>
+                    )}
                     {n.tags && n.tags.length > 0 && (
                       <div className="mt-1 flex flex-wrap gap-1">
                         {n.tags.slice(0, 4).map((t) => (
