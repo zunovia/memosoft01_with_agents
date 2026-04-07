@@ -46,6 +46,9 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
   const [view, setView] = useState<"split" | "edit" | "preview">("split");
   const [suggesting, setSuggesting] = useState(false);
   const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
+  const [aiMenuOpen, setAiMenuOpen] = useState(false);
+  const [aiResult, setAiResult] = useState<string | null>(null);
+  const [aiRunning, setAiRunning] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -160,6 +163,49 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
     router.refresh();
   }
 
+  async function runAiAction(action: string) {
+    setAiMenuOpen(false);
+    setAiRunning(true);
+    setAiResult("");
+    try {
+      const r = await fetch("/api/note-action", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action, title, content }),
+      });
+      if (!r.ok || !r.body) throw new Error(await r.text());
+      const reader = r.body.getReader();
+      const decoder = new TextDecoder();
+      let acc = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        acc += decoder.decode(value, { stream: true });
+        setAiResult(acc);
+      }
+    } catch (e) {
+      setAiResult(`エラー: ${(e as Error).message}`);
+    } finally {
+      setAiRunning(false);
+    }
+  }
+
+  function applyAiResult() {
+    if (!aiResult) return;
+    const next = aiResult;
+    setContent(next);
+    scheduleSave({ content: next });
+    setAiResult(null);
+  }
+
+  function appendAiResult() {
+    if (!aiResult) return;
+    const next = `${content}\n\n${aiResult}`;
+    setContent(next);
+    scheduleSave({ content: next });
+    setAiResult(null);
+  }
+
   async function suggestTags() {
     setSuggesting(true);
     setSuggestedTags([]);
@@ -264,6 +310,31 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
           className="text-xs text-purple-600 dark:text-purple-400 hover:underline disabled:opacity-50"
           title="AIにタグを提案させる"
         >{suggesting ? "..." : "✨タグ"}</button>
+        <div className="relative">
+          <button
+            onClick={() => setAiMenuOpen((v) => !v)}
+            className="text-xs text-purple-600 dark:text-purple-400 hover:underline"
+            title="AIアシスタント"
+          >🤖 AI</button>
+          {aiMenuOpen && (
+            <div className="absolute right-0 top-full mt-1 z-20 w-44 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded shadow-lg">
+              {[
+                { k: "summarize", l: "📋 要約" },
+                { k: "expand", l: "📈 詳細化" },
+                { k: "polish", l: "✏️ 推敲" },
+                { k: "outline", l: "🗂 アウトライン" },
+                { k: "translate-en", l: "🌐 英訳" },
+                { k: "translate-ja", l: "🌐 和訳" },
+              ].map((a) => (
+                <button
+                  key={a.k}
+                  onClick={() => runAiAction(a.k)}
+                  className="block w-full text-left px-3 py-2 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                >{a.l}</button>
+              ))}
+            </div>
+          )}
+        </div>
         <button
           onClick={exportMarkdown}
           className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline"
@@ -274,6 +345,31 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
           className="text-xs text-red-600 hover:underline"
         >削除</button>
       </div>
+      {(aiResult !== null || aiRunning) && (
+        <div className="border-b border-zinc-200 dark:border-zinc-800 p-3 bg-purple-50 dark:bg-purple-950/30">
+          <div className="flex items-center mb-2 text-xs">
+            <span className="font-semibold text-purple-700 dark:text-purple-300">🤖 AI出力{aiRunning ? " (生成中...)" : ""}</span>
+            <button
+              onClick={appendAiResult}
+              disabled={aiRunning || !aiResult}
+              className="ml-auto px-2 py-0.5 border border-zinc-300 dark:border-zinc-700 rounded disabled:opacity-50"
+            >末尾に追記</button>
+            <button
+              onClick={applyAiResult}
+              disabled={aiRunning || !aiResult}
+              className="ml-2 px-2 py-0.5 bg-purple-600 text-white rounded disabled:opacity-50"
+            >全置換</button>
+            <button
+              onClick={() => setAiResult(null)}
+              disabled={aiRunning}
+              className="ml-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+            >✕</button>
+          </div>
+          <div className="prose prose-sm dark:prose-invert max-w-none max-h-60 overflow-y-auto">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{aiResult || "..."}</ReactMarkdown>
+          </div>
+        </div>
+      )}
       {suggestedTags.length > 0 && (
         <div className="px-3 py-2 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-2 text-xs flex-wrap bg-purple-50 dark:bg-purple-950/30">
           <span className="text-purple-700 dark:text-purple-300">提案タグ:</span>
