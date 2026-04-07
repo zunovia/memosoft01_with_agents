@@ -12,6 +12,7 @@ export default function SettingsPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
 
   async function refresh() {
     const r = await fetch("/api/settings/api-key");
@@ -117,6 +118,46 @@ export default function SettingsPage() {
             )}
           </div>
         </form>
+      </section>
+
+      <section className="border rounded-lg p-4 space-y-3">
+        <h2 className="font-semibold">エクスポート / インポート</h2>
+        <p className="text-sm opacity-70">全ノートをJSONでバックアップ・復元できます。</p>
+        <div className="flex gap-2 flex-wrap">
+          <a
+            href="/api/export"
+            className="border rounded px-4 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          >ダウンロード (JSON)</a>
+          <label className="border rounded px-4 py-2 text-sm cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800">
+            インポート (JSON)
+            <input
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={async (e) => {
+                const f = e.target.files?.[0];
+                if (!f) return;
+                setImportMsg("インポート中...");
+                try {
+                  const text = await f.text();
+                  const parsed = JSON.parse(text);
+                  const r = await fetch("/api/export", {
+                    method: "POST",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({ notes: parsed.notes || parsed }),
+                  });
+                  const j = await r.json();
+                  if (!r.ok) throw new Error(j.error || "import failed");
+                  setImportMsg(`${j.imported}件インポートしました`);
+                } catch (err) {
+                  setImportMsg(`エラー: ${(err as Error).message}`);
+                }
+                e.target.value = "";
+              }}
+            />
+          </label>
+        </div>
+        {importMsg && <p className="text-sm text-zinc-500">{importMsg}</p>}
       </section>
 
       <section className="border rounded-lg p-4">

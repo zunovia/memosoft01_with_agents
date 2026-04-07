@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useRef, useState, useCallback } from "react";
+import { use, useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import CodeMirror from "@uiw/react-codemirror";
@@ -121,6 +121,35 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
     router.refresh();
   }
 
+  function exportMarkdown() {
+    const blob = new Blob([`# ${title}\n\n${content}`], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${(title || "note").replace(/[\\/:*?"<>|]/g, "_")}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const stats = useMemo(() => {
+    const chars = content.length;
+    const words = content.trim() ? content.trim().split(/\s+/).length : 0;
+    return { chars, words };
+  }, [content]);
+
+  const headings = useMemo(() => {
+    const lines = content.split("\n");
+    const out: { level: number; text: string; line: number }[] = [];
+    let inFence = false;
+    lines.forEach((l, i) => {
+      if (/^```/.test(l)) inFence = !inFence;
+      if (inFence) return;
+      const m = /^(#{1,6})\s+(.+)$/.exec(l);
+      if (m) out.push({ level: m[1].length, text: m[2].trim(), line: i });
+    });
+    return out;
+  }, [content]);
+
   if (loading) return <div className="p-6 text-sm text-zinc-500">Loading...</div>;
   if (!note) return <div className="p-6 text-sm text-zinc-500">Not found</div>;
 
@@ -136,12 +165,31 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
           className="flex-1 text-lg font-semibold bg-transparent outline-none"
           placeholder="Title"
         />
+        <span className="text-xs text-zinc-500 hidden sm:inline">{stats.chars}文字 / {stats.words}語</span>
         <span className="text-xs text-zinc-500">{saving ? "保存中..." : "保存済み"}</span>
+        <button
+          onClick={exportMarkdown}
+          className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline"
+          title="Markdownエクスポート"
+        >.md</button>
         <button
           onClick={handleDelete}
           className="text-xs text-red-600 hover:underline"
         >削除</button>
       </div>
+      {headings.length > 0 && (
+        <details className="border-b border-zinc-200 dark:border-zinc-800 px-3 py-1 text-xs">
+          <summary className="cursor-pointer text-zinc-500">アウトライン ({headings.length})</summary>
+          <ul className="mt-1 space-y-0.5">
+            {headings.map((h, i) => (
+              <li key={i} style={{ paddingLeft: (h.level - 1) * 12 }}>
+                <span className="text-zinc-400 mr-1">{"#".repeat(h.level)}</span>
+                <span className="text-zinc-700 dark:text-zinc-300">{h.text}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
       <div className="flex-1 grid grid-cols-1 md:grid-cols-2 overflow-hidden">
         <div className="overflow-y-auto border-r border-zinc-200 dark:border-zinc-800">
           <CodeMirror
