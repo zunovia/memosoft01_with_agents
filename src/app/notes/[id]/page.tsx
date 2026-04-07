@@ -17,6 +17,7 @@ import rehypeHighlight from "rehype-highlight";
 import rehypeKatex from "rehype-katex";
 import "highlight.js/styles/github-dark.css";
 import "katex/dist/katex.min.css";
+import Mermaid from "@/components/Mermaid";
 
 type Note = {
   id: string;
@@ -306,6 +307,16 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
             <ReactMarkdown
               remarkPlugins={[remarkGfm, remarkMath]}
               rehypePlugins={[rehypeHighlight, rehypeKatex]}
+              components={{
+                code(props) {
+                  const { className, children } = props as { className?: string; children?: React.ReactNode };
+                  const text = String(children ?? "");
+                  if (className === "language-mermaid") {
+                    return <Mermaid chart={text.replace(/\n$/, "")} />;
+                  }
+                  return <code className={className}>{children}</code>;
+                },
+              }}
             >{renderedContent}</ReactMarkdown>
           </div>
         )}
