@@ -5,9 +5,9 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import AnalysisModal from "@/components/AnalysisModal";
 
-const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), { ssr: false });
+const ForceGraph3D = dynamic(() => import("react-force-graph-3d"), { ssr: false });
 
-type GraphNode = { id: string; title: string };
+type GraphNode = { id: string; title: string; group?: string };
 type GraphLink = { source: string; target: string };
 
 export default function GraphPage() {
@@ -52,10 +52,12 @@ export default function GraphPage() {
 
   return (
     <div className="flex-1 flex flex-col h-[100dvh]">
-      <div className="p-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-3">
+      <div className="p-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-3 flex-wrap">
         <Link href="/notes" className="text-sm hover:underline">← Notes</Link>
-        <h1 className="font-semibold">Graph</h1>
-        <span className="text-xs text-zinc-500">クリックでノードを選択 (複数可)</span>
+        <h1 className="font-semibold">3D Graph</h1>
+        <span className="text-xs text-zinc-500 hidden sm:inline">
+          ドラッグで回転 / ホイールでズーム / クリックで選択
+        </span>
         <span className="ml-auto text-sm">選択中: {selected.size}</span>
         <button
           disabled={selected.size === 0}
@@ -67,16 +69,24 @@ export default function GraphPage() {
           className="px-2 py-1 text-xs border rounded"
         >クリア</button>
       </div>
-      <div ref={containerRef} className="flex-1 relative">
-        <ForceGraph2D
+      <div ref={containerRef} className="flex-1 relative bg-black">
+        <ForceGraph3D
           graphData={data}
           width={size.w}
           height={size.h}
+          backgroundColor="#000010"
           nodeLabel={(n: object) => (n as GraphNode).title}
-          nodeColor={(n: object) => (selected.has((n as GraphNode).id) ? "#3b82f6" : "#9ca3af")}
-          nodeRelSize={6}
-          linkColor={() => "#6b7280"}
+          nodeAutoColorBy="group"
+          nodeOpacity={0.95}
+          nodeRelSize={5}
+          nodeVal={(n: object) => (selected.has((n as GraphNode).id) ? 8 : 2)}
+          linkColor={() => "rgba(180,180,200,0.4)"}
+          linkOpacity={0.6}
+          linkWidth={0.5}
+          linkDirectionalParticles={2}
+          linkDirectionalParticleSpeed={0.005}
           onNodeClick={(n: object) => toggleSelect((n as GraphNode).id)}
+          enableNodeDrag={true}
         />
       </div>
       {showModal && (

@@ -8,7 +8,7 @@ export async function GET() {
 
   const { data: notes } = await supabase
     .from("notes")
-    .select("id, title")
+    .select("id, title, tags")
     .eq("user_id", user.id);
   const { data: links } = await supabase
     .from("links")
@@ -16,7 +16,11 @@ export async function GET() {
     .eq("user_id", user.id);
 
   return NextResponse.json({
-    nodes: (notes ?? []).map((n) => ({ id: n.id, title: n.title })),
+    nodes: (notes ?? []).map((n) => ({
+      id: n.id,
+      title: n.title,
+      group: (n.tags && n.tags[0]) || "default",
+    })),
     links: (links ?? []).map((l) => ({ source: l.source_note_id, target: l.target_note_id })),
   });
 }
