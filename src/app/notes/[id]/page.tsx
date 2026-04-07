@@ -12,8 +12,11 @@ import {
 } from "@codemirror/autocomplete";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
 import rehypeHighlight from "rehype-highlight";
+import rehypeKatex from "rehype-katex";
 import "highlight.js/styles/github-dark.css";
+import "katex/dist/katex.min.css";
 
 type Note = {
   id: string;
@@ -300,7 +303,10 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
         )}
         {view !== "edit" && (
           <div className="overflow-y-auto p-4 prose prose-sm dark:prose-invert max-w-none">
-            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>{renderedContent}</ReactMarkdown>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm, remarkMath]}
+              rehypePlugins={[rehypeHighlight, rehypeKatex]}
+            >{renderedContent}</ReactMarkdown>
           </div>
         )}
       </div>
