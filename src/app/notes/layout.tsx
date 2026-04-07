@@ -20,6 +20,7 @@ export default function NotesLayout({ children }: { children: React.ReactNode })
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [templateMenu, setTemplateMenu] = useState(false);
+  const [sort, setSort] = useState<"updated" | "title">("updated");
   const router = useRouter();
   const pathname = usePathname();
 
@@ -69,9 +70,12 @@ export default function NotesLayout({ children }: { children: React.ReactNode })
   }, [notes]);
 
   const filtered = useMemo(() => {
-    if (!tagFilter) return notes;
-    return notes.filter((n) => (n.tags || []).includes(tagFilter));
-  }, [notes, tagFilter]);
+    const base = tagFilter ? notes.filter((n) => (n.tags || []).includes(tagFilter)) : notes;
+    if (sort === "title") {
+      return [...base].sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+    }
+    return base;
+  }, [notes, tagFilter, sort]);
 
   async function createNote() {
     const res = await fetch("/api/notes", { method: "POST" });
@@ -167,7 +171,17 @@ export default function NotesLayout({ children }: { children: React.ReactNode })
           <Link href="/settings" className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline">Settings</Link>
           <span className="text-[10px] text-zinc-500 border border-zinc-300 dark:border-zinc-700 rounded px-1" title="クイックスイッチャー">⌘K</span>
         </div>
-        <div className="px-3 pt-2"><ThemeToggle /></div>
+        <div className="px-3 pt-2 flex items-center gap-2">
+          <ThemeToggle />
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as "updated" | "title")}
+            className="text-[10px] px-1 py-0.5 rounded border border-zinc-300 dark:border-zinc-700 bg-transparent ml-auto"
+          >
+            <option value="updated">更新順</option>
+            <option value="title">タイトル順</option>
+          </select>
+        </div>
         <div className="p-2 flex gap-2">
           <input
             value={q}

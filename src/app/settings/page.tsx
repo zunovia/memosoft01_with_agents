@@ -13,6 +13,7 @@ export default function SettingsPage() {
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [importMsg, setImportMsg] = useState<string | null>(null);
+  const [stats, setStats] = useState<{ notes: number; links: number; analyses: number; tags: number; chars: number } | null>(null);
 
   async function refresh() {
     const r = await fetch("/api/settings/api-key");
@@ -23,6 +24,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     refresh();
+    fetch("/api/stats").then((r) => r.json()).then(setStats).catch(() => {});
   }, []);
 
   async function save(e: React.FormEvent) {
@@ -67,6 +69,19 @@ export default function SettingsPage() {
           ← ノート一覧へ
         </Link>
       </div>
+
+      {stats && (
+        <section className="border rounded-lg p-4">
+          <h2 className="font-semibold mb-3">統計</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">
+            <div><div className="text-2xl font-bold">{stats.notes}</div><div className="text-xs opacity-60">ノート</div></div>
+            <div><div className="text-2xl font-bold">{stats.links}</div><div className="text-xs opacity-60">リンク</div></div>
+            <div><div className="text-2xl font-bold">{stats.tags}</div><div className="text-xs opacity-60">タグ</div></div>
+            <div><div className="text-2xl font-bold">{stats.analyses}</div><div className="text-xs opacity-60">解析履歴</div></div>
+            <div><div className="text-2xl font-bold">{(stats.chars / 1000).toFixed(1)}k</div><div className="text-xs opacity-60">総文字数</div></div>
+          </div>
+        </section>
+      )}
 
       <section className="border rounded-lg p-4 space-y-3">
         <h2 className="font-semibold">Anthropic APIキー</h2>
