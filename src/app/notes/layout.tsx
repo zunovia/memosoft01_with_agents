@@ -50,6 +50,7 @@ export default function NotesLayout({ children }: { children: React.ReactNode })
         <div className="p-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-2">
           <Link href="/notes" className="font-semibold text-sm">📝 Notes</Link>
           <Link href="/graph" className="text-xs text-zinc-600 dark:text-zinc-400 ml-auto hover:underline">Graph</Link>
+          <Link href="/space" className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline">Space</Link>
           <Link href="/settings" className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline">Settings</Link>
         </div>
         <div className="p-2 flex gap-2">

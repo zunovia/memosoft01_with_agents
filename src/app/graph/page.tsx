@@ -12,8 +12,29 @@ type GraphNode = {
   title: string;
   group?: string;
   __color?: string;
+  __threeObj?: unknown;
 };
 type GraphLink = { source: string; target: string };
+
+// Loose type alias for the underlying force-graph instance
+type FGInstance = {
+  renderer: () => {
+    xr: {
+      enabled: boolean;
+      getController: (i: number) => unknown;
+      addEventListener: (ev: string, cb: () => void) => void;
+      removeEventListener: (ev: string, cb: () => void) => void;
+    };
+    setAnimationLoop: (cb: (() => void) | null) => void;
+    render: (s: unknown, c: unknown) => void;
+  };
+  scene: () => { add: (...obj: unknown[]) => void; remove: (...obj: unknown[]) => void };
+  camera: () => unknown;
+  pauseAnimation?: () => void;
+  resumeAnimation?: () => void;
+  graphData: () => { nodes: GraphNode[]; links: GraphLink[] };
+  refresh?: () => void;
+};
 
 export default function GraphPage() {
   const [nodes, setNodes] = useState<GraphNode[]>([]);
@@ -22,13 +43,14 @@ export default function GraphPage() {
   const [showModal, setShowModal] = useState(false);
   const [labelsOn, setLabelsOn] = useState(true);
   const [vrSupported, setVrSupported] = useState(false);
+  const [vrActive, setVrActive] = useState(false);
   const [vrError, setVrError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const fgRef = useRef<unknown>(null);
+  const fgRef = useRef<FGInstance | null>(null);
   const vrButtonRef = useRef<HTMLElement | null>(null);
+  const vrCleanupRef = useRef<(() => void) | null>(null);
   const [size, setSize] = useState({ w: 800, h: 600 });
 
-  // Track selection in a ref so the nodeThreeObject callback can read latest state
   const selectedRef = useRef(selected);
   useEffect(() => {
     selectedRef.current = selected;
@@ -57,7 +79,6 @@ export default function GraphPage() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // Detect WebXR support
   useEffect(() => {
     const nav = navigator as Navigator & {
       xr?: { isSessionSupported?: (m: string) => Promise<boolean> };
@@ -81,60 +102,107 @@ export default function GraphPage() {
     });
   }, []);
 
-  // Build SpriteText label per node
-  const nodeThreeObject = useCallback(
-    (node: object) => {
-      // dynamic import is not available here (sync callback) — use require
-      // Loaded via top-level dynamic chunk; safe in client component
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const SpriteText = require("three-spritetext").default;
-      const n = node as GraphNode;
-      const sprite = new SpriteText(n.title || "Untitled");
-      const isSelected = selectedRef.current.has(n.id);
-      sprite.color = isSelected ? "#60a5fa" : n.__color || "#ffffff";
-      sprite.textHeight = isSelected ? 6 : 3.5;
-      sprite.fontFace = "system-ui, sans-serif";
-      sprite.fontWeight = isSelected ? "700" : "500";
-      sprite.backgroundColor = "rgba(0,0,0,0.4)";
-      sprite.padding = 1.5;
-      sprite.borderRadius = 2;
-      return sprite;
-    },
-    []
-  );
+  const nodeThreeObject = useCallback((node: object) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const SpriteText = require("three-spritetext").default;
+    const n = node as GraphNode;
+    const sprite = new SpriteText(n.title || "Untitled");
+    const isSelected = selectedRef.current.has(n.id);
+    sprite.color = isSelected ? "#60a5fa" : n.__color || "#ffffff";
+    sprite.textHeight = isSelected ? 6 : 3.5;
+    sprite.fontFace = "system-ui, sans-serif";
+    sprite.fontWeight = isSelected ? "700" : "500";
+    sprite.backgroundColor = "rgba(0,0,0,0.4)";
+    sprite.padding = 1.5;
+    sprite.borderRadius = 2;
+    return sprite;
+  }, []);
 
-  // Re-render labels when selection changes
   useEffect(() => {
-    const fg = fgRef.current as { refresh?: () => void } | null;
-    if (fg && fg.refresh) fg.refresh();
+    fgRef.current?.refresh?.();
   }, [selected, labelsOn]);
 
-  // WebXR / VRButton setup
   const enableVR = useCallback(async () => {
     setVrError(null);
     try {
-      const fg = fgRef.current as
-        | {
-            renderer: () => { xr: { enabled: boolean }; setAnimationLoop: (cb: (() => void) | null) => void; render: (s: unknown, c: unknown) => void };
-            scene: () => unknown;
-            camera: () => unknown;
-            pauseAnimation?: () => void;
-          }
-        | null;
+      const fg = fgRef.current;
       if (!fg) return;
+      const THREE = await import("three");
       const { VRButton } = await import("three/examples/jsm/webxr/VRButton.js");
-      const renderer = fg.renderer();
-      renderer.xr.enabled = true;
 
-      // Pause built-in rAF loop and use XR-compatible setAnimationLoop
-      if (fg.pauseAnimation) fg.pauseAnimation();
+      const renderer = fg.renderer();
       const scene = fg.scene();
       const camera = fg.camera();
+
+      renderer.xr.enabled = true;
+      fg.pauseAnimation?.();
       renderer.setAnimationLoop(() => {
         renderer.render(scene, camera);
       });
 
-      // Append the VR button into our container if not already present
+      // --- Controllers with laser pointer rays ---
+      const controller1 = renderer.xr.getController(0) as unknown as {
+        addEventListener: (ev: string, cb: (e: { target: unknown }) => void) => void;
+        removeEventListener: (ev: string, cb: (e: { target: unknown }) => void) => void;
+        matrixWorld: unknown;
+        add: (o: unknown) => void;
+      };
+      const controller2 = renderer.xr.getController(1) as unknown as typeof controller1;
+
+      const lineGeom = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(0, 0, -50),
+      ]);
+      const lineMat = new THREE.LineBasicMaterial({ color: 0x60a5fa });
+      const line1 = new THREE.Line(lineGeom, lineMat);
+      const line2 = new THREE.Line(lineGeom.clone(), lineMat.clone());
+      controller1.add(line1);
+      controller2.add(line2);
+      scene.add(controller1, controller2);
+
+      const raycaster = new THREE.Raycaster();
+      const tempMatrix = new THREE.Matrix4();
+
+      const onSelect = (event: { target: unknown }) => {
+        const ctrl = event.target as {
+          matrixWorld: { elements: number[] };
+        };
+        tempMatrix.identity().extractRotation(ctrl.matrixWorld as never);
+        raycaster.ray.origin.setFromMatrixPosition(
+          ctrl.matrixWorld as never
+        );
+        raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+
+        const allNodes = fg.graphData().nodes;
+        const objs = allNodes
+          .map((n) => n.__threeObj)
+          .filter(Boolean) as never[];
+        const hits = raycaster.intersectObjects(objs, true);
+        if (hits.length > 0) {
+          let hit: { parent: unknown } | null = hits[0].object as { parent: unknown };
+          // walk up to a top-level node object
+          while (hit && !allNodes.find((n) => n.__threeObj === hit)) {
+            hit = (hit.parent as { parent: unknown } | null) ?? null;
+          }
+          if (hit) {
+            const node = allNodes.find((n) => n.__threeObj === hit);
+            if (node) toggleSelect(node.id);
+          }
+        }
+      };
+      controller1.addEventListener("selectstart", onSelect);
+      controller2.addEventListener("selectstart", onSelect);
+
+      // --- Session lifecycle ---
+      const onSessionStart = () => setVrActive(true);
+      const onSessionEnd = () => {
+        setVrActive(false);
+        renderer.setAnimationLoop(null);
+        fg.resumeAnimation?.();
+      };
+      renderer.xr.addEventListener("sessionstart", onSessionStart);
+      renderer.xr.addEventListener("sessionend", onSessionEnd);
+
       if (!vrButtonRef.current) {
         const btn = VRButton.createButton(
           renderer as unknown as Parameters<typeof VRButton.createButton>[0]
@@ -147,18 +215,26 @@ export default function GraphPage() {
         containerRef.current?.appendChild(btn);
         vrButtonRef.current = btn;
       }
+
+      vrCleanupRef.current = () => {
+        controller1.removeEventListener("selectstart", onSelect);
+        controller2.removeEventListener("selectstart", onSelect);
+        renderer.xr.removeEventListener("sessionstart", onSessionStart);
+        renderer.xr.removeEventListener("sessionend", onSessionEnd);
+        scene.remove(controller1, controller2);
+        vrButtonRef.current?.remove();
+        vrButtonRef.current = null;
+        renderer.setAnimationLoop(null);
+        fg.resumeAnimation?.();
+      };
     } catch (e) {
       setVrError((e as Error).message);
     }
-  }, []);
+  }, [toggleSelect]);
 
-  // Cleanup VR button on unmount
   useEffect(() => {
     return () => {
-      if (vrButtonRef.current) {
-        vrButtonRef.current.remove();
-        vrButtonRef.current = null;
-      }
+      vrCleanupRef.current?.();
     };
   }, []);
 
@@ -166,6 +242,7 @@ export default function GraphPage() {
     <div className="flex-1 flex flex-col h-[100dvh]">
       <div className="p-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-3 flex-wrap">
         <Link href="/notes" className="text-sm hover:underline">← Notes</Link>
+        <Link href="/space" className="text-sm hover:underline">Space →</Link>
         <h1 className="font-semibold">3D Graph</h1>
         <span className="text-xs text-zinc-500 hidden md:inline">
           ドラッグで回転 / ホイールでズーム / クリックで選択
@@ -198,6 +275,11 @@ export default function GraphPage() {
           <span className="text-xs text-zinc-500" title="このブラウザ/デバイスはWebXRに非対応です">VR非対応</span>
         )}
       </div>
+      {vrActive && (
+        <div className="px-3 py-1 text-xs text-purple-300 bg-purple-950/40 border-b border-purple-900">
+          🥽 VRセッション中 — ヘッドセットのメニューまたは画面下「EXIT VR」で終了
+        </div>
+      )}
       {vrError && (
         <div className="px-3 py-1.5 text-xs text-red-400 bg-red-950/40 border-b border-red-900">
           VRエラー: {vrError}
