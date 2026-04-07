@@ -54,6 +54,9 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
   const [aiRunning, setAiRunning] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [findOpen, setFindOpen] = useState(false);
+  const [findText, setFindText] = useState("");
+  const [replaceText, setReplaceText] = useState("");
   const [revisions, setRevisions] = useState<{ id: string; title: string; content: string; created_at: string }[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -142,6 +145,9 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
         e.preventDefault();
         if (debounceRef.current) clearTimeout(debounceRef.current);
         save({ title, content });
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        setFindOpen(true);
       } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "e") {
         e.preventDefault();
         setView((v) => (v === "split" ? "preview" : v === "preview" ? "edit" : "split"));
@@ -364,6 +370,22 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
     setContent(next);
     scheduleSave({ content: next });
   }
+
+  function replaceAll() {
+    if (!findText) return;
+    const next = content.split(findText).join(replaceText);
+    if (next === content) {
+      alert("一致なし");
+      return;
+    }
+    setContent(next);
+    scheduleSave({ content: next });
+  }
+
+  const findCount = useMemo(() => {
+    if (!findText) return 0;
+    return content.split(findText).length - 1;
+  }, [findText, content]);
 
   function exportMarkdown() {
     const blob = new Blob([`# ${title}\n\n${content}`], { type: "text/markdown" });
@@ -633,6 +655,26 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
               </li>
             ))}
           </ul>
+        </div>
+      )}
+      {findOpen && (
+        <div className="border-b border-zinc-200 dark:border-zinc-800 p-2 flex items-center gap-2 text-xs bg-yellow-50 dark:bg-yellow-950/30">
+          <input
+            autoFocus
+            value={findText}
+            onChange={(e) => setFindText(e.target.value)}
+            placeholder="検索..."
+            className="px-2 py-1 rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
+          />
+          <input
+            value={replaceText}
+            onChange={(e) => setReplaceText(e.target.value)}
+            placeholder="置換..."
+            className="px-2 py-1 rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
+          />
+          <span className="text-zinc-500">{findCount}件</span>
+          <button onClick={replaceAll} className="px-2 py-1 bg-blue-600 text-white rounded">全て置換</button>
+          <button onClick={() => { setFindOpen(false); setFindText(""); setReplaceText(""); }} className="ml-auto text-zinc-500 hover:text-zinc-900 dark:hover:text-white">✕</button>
         </div>
       )}
       {historyOpen && (
