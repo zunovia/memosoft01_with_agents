@@ -218,6 +218,21 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
     setAiResult(null);
   }
 
+  async function suggestTitle() {
+    if (!content.trim()) return;
+    const r = await fetch("/api/suggest-title", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ content }),
+    });
+    if (!r.ok) return;
+    const j = await r.json();
+    if (j.title) {
+      setTitle(j.title);
+      scheduleSave({ title: j.title });
+    }
+  }
+
   async function suggestTags() {
     setSuggesting(true);
     setSuggestedTags([]);
@@ -438,6 +453,11 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
           className="flex-1 text-lg font-semibold bg-transparent outline-none"
           placeholder="Title"
         />
+        <button
+          onClick={suggestTitle}
+          className="text-xs text-purple-600 dark:text-purple-400 hover:underline"
+          title="AIにタイトルを提案させる"
+        >✨題</button>
         <div className="flex border border-zinc-300 dark:border-zinc-700 rounded overflow-hidden text-[10px]">
           {(["edit", "split", "preview"] as const).map((v) => (
             <button
