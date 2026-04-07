@@ -47,6 +47,8 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
   const [view, setView] = useState<"split" | "edit" | "preview">("split");
   const [suggesting, setSuggesting] = useState(false);
   const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
+  const [suggestedLinks, setSuggestedLinks] = useState<string[]>([]);
+  const [suggestingLinks, setSuggestingLinks] = useState(false);
   const [aiMenuOpen, setAiMenuOpen] = useState(false);
   const [aiResult, setAiResult] = useState<string | null>(null);
   const [aiRunning, setAiRunning] = useState(false);
@@ -224,6 +226,32 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
     } finally {
       setSuggesting(false);
     }
+  }
+
+  async function suggestLinks() {
+    setSuggestingLinks(true);
+    setSuggestedLinks([]);
+    try {
+      const r = await fetch("/api/suggest-links", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ noteId: id }),
+      });
+      const j = await r.json();
+      setSuggestedLinks(j.titles || []);
+    } finally {
+      setSuggestingLinks(false);
+    }
+  }
+
+  function applyLink(title: string) {
+    const insert = ` [[${title}]]`;
+    if (!content.includes(`[[${title}]]`)) {
+      const next = content + insert;
+      setContent(next);
+      scheduleSave({ content: next });
+    }
+    setSuggestedLinks((prev) => prev.filter((t) => t !== title));
   }
 
   function applyTag(tag: string) {
@@ -415,6 +443,12 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
           className="text-xs text-purple-600 dark:text-purple-400 hover:underline disabled:opacity-50"
           title="AIにタグを提案させる"
         >{suggesting ? "..." : "✨タグ"}</button>
+        <button
+          onClick={suggestLinks}
+          disabled={suggestingLinks}
+          className="text-xs text-purple-600 dark:text-purple-400 hover:underline disabled:opacity-50"
+          title="関連ノートへのリンクをAIに提案させる"
+        >{suggestingLinks ? "..." : "🔗AI"}</button>
         <div className="relative">
           <button
             onClick={() => setAiMenuOpen((v) => !v)}
@@ -512,6 +546,22 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
           ))}
           <button
             onClick={() => setSuggestedTags([])}
+            className="ml-auto text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+          >✕</button>
+        </div>
+      )}
+      {suggestedLinks.length > 0 && (
+        <div className="px-3 py-2 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-2 text-xs flex-wrap bg-purple-50 dark:bg-purple-950/30">
+          <span className="text-purple-700 dark:text-purple-300">提案リンク:</span>
+          {suggestedLinks.map((t) => (
+            <button
+              key={t}
+              onClick={() => applyLink(t)}
+              className="px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 hover:bg-purple-200 dark:hover:bg-purple-800"
+            >+ [[{t}]]</button>
+          ))}
+          <button
+            onClick={() => setSuggestedLinks([])}
             className="ml-auto text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
           >✕</button>
         </div>
