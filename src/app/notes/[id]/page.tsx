@@ -50,6 +50,8 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
   const [aiResult, setAiResult] = useState<string | null>(null);
   const [aiRunning, setAiRunning] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [revisions, setRevisions] = useState<{ id: string; title: string; content: string; created_at: string }[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -249,6 +251,23 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
     setSpeaking(true);
   }
 
+  async function openHistory() {
+    setHistoryOpen(true);
+    const r = await fetch(`/api/notes/${id}/revisions`);
+    if (r.ok) {
+      const j = await r.json();
+      setRevisions(j.revisions || []);
+    }
+  }
+
+  function restoreRevision(rev: { title: string; content: string }) {
+    if (!confirm("この版で現在の内容を置き換えますか?")) return;
+    setTitle(rev.title);
+    setContent(rev.content);
+    save({ title: rev.title, content: rev.content });
+    setHistoryOpen(false);
+  }
+
   async function duplicate() {
     const r = await fetch("/api/notes", { method: "POST" });
     if (!r.ok) return;
@@ -369,6 +388,11 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
           className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline"
           title="読み上げ"
         >{speaking ? "⏸" : "🔊"}</button>
+        <button
+          onClick={openHistory}
+          className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline"
+          title="変更履歴"
+        >🕒</button>
         <button
           onClick={duplicate}
           className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline"
@@ -491,6 +515,29 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
               </li>
             ))}
           </ul>
+        </div>
+      )}
+      {historyOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setHistoryOpen(false)}>
+          <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="p-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center">
+              <h2 className="font-semibold text-sm">🕒 変更履歴</h2>
+              <button className="ml-auto text-zinc-500 hover:text-zinc-900 dark:hover:text-white" onClick={() => setHistoryOpen(false)}>✕</button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {revisions.length === 0 && <div className="p-4 text-xs text-zinc-500">履歴はまだありません</div>}
+              {revisions.map((r) => (
+                <div key={r.id} className="p-3 border-b border-zinc-200 dark:border-zinc-800">
+                  <div className="flex items-center mb-1">
+                    <span className="text-xs text-zinc-500">{new Date(r.created_at).toLocaleString()}</span>
+                    <button onClick={() => restoreRevision(r)} className="ml-auto text-xs px-2 py-0.5 bg-blue-600 text-white rounded">復元</button>
+                  </div>
+                  <div className="text-xs font-medium truncate">{r.title || "(無題)"}</div>
+                  <div className="text-[10px] text-zinc-500 line-clamp-2 mt-1">{r.content.slice(0, 200)}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
       {backlinks.length > 0 && (

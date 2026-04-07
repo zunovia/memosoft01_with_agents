@@ -68,6 +68,38 @@ export async function PATCH(req: Request, { params }: Ctx) {
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const body = await req.json();
+
+  // snapshot revision before update if content/title changes
+  if (typeof body.title === "string" || typeof body.content === "string") {
+    const { data: prev } = await supabase
+      .from("notes")
+      .select("title, content")
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (prev) {
+      // throttle: only insert if last revision is older than 5 minutes
+      const { data: last } = await supabase
+        .from("note_revisions")
+        .select("created_at")
+        .eq("note_id", id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const fresh =
+        !last ||
+        Date.now() - new Date(last.created_at).getTime() > 5 * 60 * 1000;
+      if (fresh) {
+        await supabase.from("note_revisions").insert({
+          note_id: id,
+          user_id: user.id,
+          title: prev.title ?? "",
+          content: prev.content ?? "",
+        });
+      }
+    }
+  }
+
   const updates: Record<string, unknown> = {};
   if (typeof body.title === "string") updates.title = body.title;
   if (typeof body.content === "string") {
