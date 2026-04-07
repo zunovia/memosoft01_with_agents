@@ -194,6 +194,7 @@ export default function NotesLayout({ children }: { children: React.ReactNode })
           <Link href="/review" className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline">📅</Link>
           <Link href="/orphans" className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline">🪦</Link>
           <Link href="/words" className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline">☁️</Link>
+          <Link href="/timeline" className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline">📜</Link>
           <button
             onClick={async () => {
               const r = await fetch("/api/notes/random");
