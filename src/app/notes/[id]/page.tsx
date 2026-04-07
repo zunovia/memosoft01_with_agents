@@ -302,6 +302,41 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
     router.push(`/notes/${created.id}`);
   }
 
+  async function uploadFile(file: File): Promise<string | null> {
+    const fd = new FormData();
+    fd.append("file", file);
+    const r = await fetch("/api/upload", { method: "POST", body: fd });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return j.url as string;
+  }
+
+  async function handlePaste(e: React.ClipboardEvent) {
+    const items = Array.from(e.clipboardData.items);
+    const file = items.find((it) => it.kind === "file" && it.type.startsWith("image/"))?.getAsFile();
+    if (!file) return;
+    e.preventDefault();
+    const url = await uploadFile(file);
+    if (!url) return;
+    const md = `\n![](${url})\n`;
+    const next = content + md;
+    setContent(next);
+    scheduleSave({ content: next });
+  }
+
+  async function handleDrop(e: React.DragEvent) {
+    const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
+    if (files.length === 0) return;
+    e.preventDefault();
+    let next = content;
+    for (const f of files) {
+      const url = await uploadFile(f);
+      if (url) next += `\n![${f.name}](${url})\n`;
+    }
+    setContent(next);
+    scheduleSave({ content: next });
+  }
+
   function exportMarkdown() {
     const blob = new Blob([`# ${title}\n\n${content}`], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
@@ -496,7 +531,12 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
       )}
       <div className={`flex-1 grid grid-cols-1 ${view === "split" ? "md:grid-cols-2" : ""} overflow-hidden`}>
         {view !== "preview" && (
-          <div className="overflow-y-auto border-r border-zinc-200 dark:border-zinc-800">
+          <div
+            className="overflow-y-auto border-r border-zinc-200 dark:border-zinc-800"
+            onPaste={handlePaste}
+            onDrop={handleDrop}
+            onDragOver={(e) => e.preventDefault()}
+          >
             <CodeMirror
               value={content}
               height="100%"
