@@ -74,6 +74,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
     updates.content = body.content;
     updates.tags = extractTags(body.content);
   }
+  if (typeof body.pinned === "boolean") updates.pinned = body.pinned;
+  if (body.restore === true) updates.deleted_at = null;
 
   const { data: note, error } = await supabase
     .from("notes")
@@ -129,17 +131,29 @@ export async function PATCH(req: Request, { params }: Ctx) {
   return NextResponse.json({ note });
 }
 
-export async function DELETE(_req: Request, { params }: Ctx) {
+export async function DELETE(req: Request, { params }: Ctx) {
   const { id } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const { error } = await supabase
-    .from("notes")
-    .delete()
-    .eq("id", id)
-    .eq("user_id", user.id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const url = new URL(req.url);
+  const hard = url.searchParams.get("hard") === "1";
+
+  if (hard) {
+    const { error } = await supabase
+      .from("notes")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", user.id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  } else {
+    const { error } = await supabase
+      .from("notes")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("user_id", user.id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  }
   return NextResponse.json({ ok: true });
 }

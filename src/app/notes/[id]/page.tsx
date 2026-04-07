@@ -25,6 +25,7 @@ type Note = {
   content: string;
   tags: string[];
   updated_at: string;
+  pinned?: boolean;
 };
 
 type Backlink = { id: string; title: string };
@@ -141,6 +142,17 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
     return () => window.removeEventListener("keydown", onKey);
   }, [save, title, content]);
 
+  async function togglePin() {
+    if (!note) return;
+    const next = !note.pinned;
+    setNote({ ...note, pinned: next });
+    await fetch(`/api/notes/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ pinned: next }),
+    });
+  }
+
   async function handleDelete() {
     if (!confirm("このノートを削除しますか?")) return;
     await fetch(`/api/notes/${id}`, { method: "DELETE" });
@@ -236,6 +248,11 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
         </div>
         <span className="text-xs text-zinc-500 hidden sm:inline">{stats.chars}文字 / {stats.words}語</span>
         <span className="text-xs text-zinc-500">{saving ? "保存中..." : "保存済み"}</span>
+        <button
+          onClick={togglePin}
+          className="text-xs hover:underline"
+          title="ピン留め"
+        >{note.pinned ? "📌" : "📍"}</button>
         <button
           onClick={() => setFocusMode((v) => !v)}
           className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline"

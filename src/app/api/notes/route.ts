@@ -9,13 +9,21 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const q = url.searchParams.get("q");
   const withSnippet = url.searchParams.get("snippet") === "1";
+  const trash = url.searchParams.get("trash") === "1";
 
   let query = supabase
     .from("notes")
-    .select("id, title, updated_at, tags, content")
+    .select("id, title, updated_at, tags, content, pinned, deleted_at")
     .eq("user_id", user.id)
+    .order("pinned", { ascending: false })
     .order("updated_at", { ascending: false })
     .limit(500);
+
+  if (trash) {
+    query = query.not("deleted_at", "is", null);
+  } else {
+    query = query.is("deleted_at", null);
+  }
 
   if (q && q.trim()) {
     query = query.or(`title.ilike.%${q}%,content.ilike.%${q}%`);
@@ -30,6 +38,8 @@ export async function GET(req: Request) {
       title: n.title,
       updated_at: n.updated_at,
       tags: n.tags,
+      pinned: (n as { pinned?: boolean }).pinned ?? false,
+      deleted_at: (n as { deleted_at?: string | null }).deleted_at ?? null,
     };
     if (withSnippet && typeof n.content === "string") {
       const stripped = n.content

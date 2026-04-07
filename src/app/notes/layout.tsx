@@ -11,6 +11,7 @@ type NoteListItem = {
   updated_at: string;
   tags?: string[];
   snippet?: string;
+  pinned?: boolean;
 };
 
 export default function NotesLayout({ children }: { children: React.ReactNode }) {
@@ -168,6 +169,7 @@ export default function NotesLayout({ children }: { children: React.ReactNode })
           <Link href="/notes" className="font-semibold text-sm">📝 Notes</Link>
           <Link href="/graph" className="text-xs text-zinc-600 dark:text-zinc-400 ml-auto hover:underline">Graph</Link>
           <Link href="/space" className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline">Space</Link>
+          <Link href="/notes/trash" className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline">🗑</Link>
           <Link href="/settings" className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline">Settings</Link>
           <span className="text-[10px] text-zinc-500 border border-zinc-300 dark:border-zinc-700 rounded px-1" title="クイックスイッチャー">⌘K</span>
         </div>
@@ -245,7 +247,7 @@ export default function NotesLayout({ children }: { children: React.ReactNode })
                     href={`/notes/${n.id}`}
                     className={`block px-3 py-2 text-sm border-b border-zinc-200/50 dark:border-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-900 ${active ? "bg-zinc-200 dark:bg-zinc-800" : ""}`}
                   >
-                    <div className="truncate font-medium">{highlight(n.title || "Untitled", q)}</div>
+                    <div className="truncate font-medium">{n.pinned && "📌 "}{highlight(n.title || "Untitled", q)}</div>
                     <div className="text-[10px] text-zinc-500">{new Date(n.updated_at).toLocaleString()}</div>
                     {n.snippet && q && (
                       <div className="text-[10px] text-zinc-600 dark:text-zinc-400 mt-1 line-clamp-2">{highlight(n.snippet, q)}</div>
