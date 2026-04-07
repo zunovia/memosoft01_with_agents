@@ -36,7 +36,29 @@ export async function GET(_req: Request, { params }: Ctx) {
     backlinks = bl ?? [];
   }
 
-  return NextResponse.json({ note, backlinks });
+  // related notes by tag overlap
+  let related: { id: string; title: string; shared: number }[] = [];
+  const noteTags: string[] = (note as { tags?: string[] }).tags || [];
+  if (noteTags.length > 0) {
+    const { data: candidates } = await supabase
+      .from("notes")
+      .select("id, title, tags, updated_at")
+      .eq("user_id", user.id)
+      .neq("id", id)
+      .overlaps("tags", noteTags)
+      .order("updated_at", { ascending: false })
+      .limit(50);
+    related = (candidates ?? [])
+      .map((c: { id: string; title: string; tags: string[] }) => ({
+        id: c.id,
+        title: c.title,
+        shared: (c.tags || []).filter((t) => noteTags.includes(t)).length,
+      }))
+      .sort((a, b) => b.shared - a.shared)
+      .slice(0, 8);
+  }
+
+  return NextResponse.json({ note, backlinks, related });
 }
 
 export async function PATCH(req: Request, { params }: Ctx) {

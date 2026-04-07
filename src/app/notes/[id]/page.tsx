@@ -30,6 +30,8 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [backlinks, setBacklinks] = useState<Backlink[]>([]);
+  const [related, setRelated] = useState<{ id: string; title: string; shared: number }[]>([]);
+  const [focusMode, setFocusMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [allNotes, setAllNotes] = useState<{ id: string; title: string }[]>([]);
@@ -91,6 +93,7 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
           setTitle(json.note.title);
           setContent(json.note.content);
           setBacklinks(json.backlinks || []);
+          setRelated(json.related || []);
         }
         setLoading(false);
       });
@@ -205,7 +208,7 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
   if (!note) return <div className="p-6 text-sm text-zinc-500">Not found</div>;
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className={`flex-1 flex flex-col overflow-hidden ${focusMode ? "fixed inset-0 z-50 bg-white dark:bg-zinc-950" : ""}`}>
       <div className="flex items-center gap-2 p-3 border-b border-zinc-200 dark:border-zinc-800">
         <input
           value={title}
@@ -227,6 +230,11 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
         </div>
         <span className="text-xs text-zinc-500 hidden sm:inline">{stats.chars}文字 / {stats.words}語</span>
         <span className="text-xs text-zinc-500">{saving ? "保存中..." : "保存済み"}</span>
+        <button
+          onClick={() => setFocusMode((v) => !v)}
+          className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline"
+          title="フォーカスモード (サイドバー非表示)"
+        >{focusMode ? "◧" : "◨"}</button>
         <button
           onClick={suggestTags}
           disabled={suggesting}
@@ -294,6 +302,21 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
           </div>
         )}
       </div>
+      {related.length > 0 && (
+        <div className="border-t border-zinc-200 dark:border-zinc-800 p-3 text-xs">
+          <div className="font-semibold mb-1">関連ノート</div>
+          <ul className="flex flex-wrap gap-2">
+            {related.map((r) => (
+              <li key={r.id}>
+                <Link
+                  href={`/notes/${r.id}`}
+                  className="text-purple-600 dark:text-purple-400 hover:underline"
+                >{r.title} <span className="text-[10px] opacity-60">×{r.shared}</span></Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {backlinks.length > 0 && (
         <div className="border-t border-zinc-200 dark:border-zinc-800 p-3 text-xs">
           <div className="font-semibold mb-1">バックリンク</div>
