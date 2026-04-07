@@ -13,6 +13,9 @@ export default function SettingsPage() {
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [importMsg, setImportMsg] = useState<string | null>(null);
+  const [tagFrom, setTagFrom] = useState("");
+  const [tagTo, setTagTo] = useState("");
+  const [tagMsg, setTagMsg] = useState<string | null>(null);
   const [stats, setStats] = useState<{ notes: number; links: number; analyses: number; tags: number; chars: number } | null>(null);
 
   async function refresh() {
@@ -173,6 +176,42 @@ export default function SettingsPage() {
           </label>
         </div>
         {importMsg && <p className="text-sm text-zinc-500">{importMsg}</p>}
+      </section>
+
+      <section className="border rounded-lg p-4 space-y-3">
+        <h2 className="font-semibold">タグ一括リネーム</h2>
+        <p className="text-sm opacity-70">全ノート内の <code>#旧</code> を <code>#新</code> に置換します。</p>
+        <div className="flex gap-2 flex-wrap items-center">
+          <input
+            value={tagFrom}
+            onChange={(e) => setTagFrom(e.target.value)}
+            placeholder="旧タグ (#なし)"
+            className="border rounded px-3 py-1.5 text-sm bg-transparent"
+          />
+          <span>→</span>
+          <input
+            value={tagTo}
+            onChange={(e) => setTagTo(e.target.value)}
+            placeholder="新タグ"
+            className="border rounded px-3 py-1.5 text-sm bg-transparent"
+          />
+          <button
+            onClick={async () => {
+              if (!tagFrom || !tagTo) return;
+              setTagMsg("実行中...");
+              const r = await fetch("/api/tags/rename", {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ from: tagFrom, to: tagTo }),
+              });
+              const j = await r.json();
+              setTagMsg(r.ok ? `${j.updated}件更新` : `エラー: ${j.error}`);
+              if (r.ok) { setTagFrom(""); setTagTo(""); }
+            }}
+            className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded"
+          >実行</button>
+        </div>
+        {tagMsg && <p className="text-sm text-zinc-500">{tagMsg}</p>}
       </section>
 
       <section className="border rounded-lg p-4">
