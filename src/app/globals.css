@@ -24,3 +24,10 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@media print {
+  aside, nav, header, button, .no-print { display: none !important; }
+  main { overflow: visible !important; }
+  .prose { max-width: none !important; color: #000 !important; }
+  body { background: #fff !important; color: #000 !important; }
+}

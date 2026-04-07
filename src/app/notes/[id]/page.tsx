@@ -232,6 +232,18 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
     setSuggestedTags((prev) => prev.filter((t) => t !== tag));
   }
 
+  async function duplicate() {
+    const r = await fetch("/api/notes", { method: "POST" });
+    if (!r.ok) return;
+    const { note: created } = await r.json();
+    await fetch(`/api/notes/${created.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: `${title} (copy)`, content }),
+    });
+    router.push(`/notes/${created.id}`);
+  }
+
   function exportMarkdown() {
     const blob = new Blob([`# ${title}\n\n${content}`], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
@@ -336,10 +348,20 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
           )}
         </div>
         <button
+          onClick={duplicate}
+          className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline"
+          title="複製"
+        >⎘</button>
+        <button
           onClick={exportMarkdown}
           className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline"
           title="Markdownエクスポート"
         >.md</button>
+        <button
+          onClick={() => window.print()}
+          className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline"
+          title="印刷 / PDF"
+        >🖨</button>
         <button
           onClick={handleDelete}
           className="text-xs text-red-600 hover:underline"
