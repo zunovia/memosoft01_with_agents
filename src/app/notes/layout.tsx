@@ -191,6 +191,7 @@ export default function NotesLayout({ children }: { children: React.ReactNode })
           <Link href="/chat" className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline">Chat</Link>
           <Link href="/tasks" className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline">Tasks</Link>
           <Link href="/activity" className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline">📊</Link>
+          <Link href="/review" className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline">📅</Link>
           <Link href="/notes/trash" className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline">🗑</Link>
           <Link href="/settings" className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline">Settings</Link>
           <span className="text-[10px] text-zinc-500 border border-zinc-300 dark:border-zinc-700 rounded px-1" title="クイックスイッチャー">⌘K</span>
