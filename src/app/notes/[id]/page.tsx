@@ -35,6 +35,8 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
   const [allNotes, setAllNotes] = useState<{ id: string; title: string }[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
   const [view, setView] = useState<"split" | "edit" | "preview">("split");
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -137,6 +139,32 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
     router.refresh();
   }
 
+  async function suggestTags() {
+    setSuggesting(true);
+    setSuggestedTags([]);
+    try {
+      const r = await fetch("/api/suggest-tags", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ title, content }),
+      });
+      const j = await r.json();
+      setSuggestedTags(j.tags || []);
+    } finally {
+      setSuggesting(false);
+    }
+  }
+
+  function applyTag(tag: string) {
+    const insert = `\n#${tag}`;
+    if (!content.includes(`#${tag}`)) {
+      const next = content + insert;
+      setContent(next);
+      scheduleSave({ content: next });
+    }
+    setSuggestedTags((prev) => prev.filter((t) => t !== tag));
+  }
+
   function exportMarkdown() {
     const blob = new Blob([`# ${title}\n\n${content}`], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
@@ -200,6 +228,12 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
         <span className="text-xs text-zinc-500 hidden sm:inline">{stats.chars}文字 / {stats.words}語</span>
         <span className="text-xs text-zinc-500">{saving ? "保存中..." : "保存済み"}</span>
         <button
+          onClick={suggestTags}
+          disabled={suggesting}
+          className="text-xs text-purple-600 dark:text-purple-400 hover:underline disabled:opacity-50"
+          title="AIにタグを提案させる"
+        >{suggesting ? "..." : "✨タグ"}</button>
+        <button
           onClick={exportMarkdown}
           className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline"
           title="Markdownエクスポート"
@@ -209,6 +243,22 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
           className="text-xs text-red-600 hover:underline"
         >削除</button>
       </div>
+      {suggestedTags.length > 0 && (
+        <div className="px-3 py-2 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-2 text-xs flex-wrap bg-purple-50 dark:bg-purple-950/30">
+          <span className="text-purple-700 dark:text-purple-300">提案タグ:</span>
+          {suggestedTags.map((t) => (
+            <button
+              key={t}
+              onClick={() => applyTag(t)}
+              className="px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 hover:bg-purple-200 dark:hover:bg-purple-800"
+            >+ #{t}</button>
+          ))}
+          <button
+            onClick={() => setSuggestedTags([])}
+            className="ml-auto text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+          >✕</button>
+        </div>
+      )}
       {headings.length > 0 && (
         <details className="border-b border-zinc-200 dark:border-zinc-800 px-3 py-1 text-xs">
           <summary className="cursor-pointer text-zinc-500">アウトライン ({headings.length})</summary>
