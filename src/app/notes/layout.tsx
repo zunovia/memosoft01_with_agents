@@ -63,6 +63,29 @@ export default function NotesLayout({ children }: { children: React.ReactNode })
     }
   }
 
+  async function openDailyNote() {
+    const today = new Date().toISOString().slice(0, 10);
+    const res = await fetch(`/api/notes?q=${encodeURIComponent(today)}`);
+    if (res.ok) {
+      const j = await res.json();
+      const found = (j.notes || []).find((n: NoteListItem) => n.title === today);
+      if (found) {
+        router.push(`/notes/${found.id}`);
+        return;
+      }
+    }
+    const c = await fetch("/api/notes", { method: "POST" });
+    if (c.ok) {
+      const { note } = await c.json();
+      await fetch(`/api/notes/${note.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ title: today, content: `# ${today}\n\n` }),
+      });
+      router.push(`/notes/${note.id}`);
+    }
+  }
+
   return (
     <div className="flex flex-1 h-[100dvh] overflow-hidden relative">
       {/* Mobile hamburger */}
@@ -97,6 +120,11 @@ export default function NotesLayout({ children }: { children: React.ReactNode })
             placeholder="Search..."
             className="flex-1 px-2 py-1 text-sm rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
           />
+          <button
+            onClick={openDailyNote}
+            className="px-2 py-1 text-sm border border-zinc-300 dark:border-zinc-700 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            title="今日のノート"
+          >📅</button>
           <button
             onClick={createNote}
             className="px-2 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"

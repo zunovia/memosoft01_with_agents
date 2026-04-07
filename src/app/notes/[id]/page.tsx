@@ -34,6 +34,7 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
   const [loading, setLoading] = useState(true);
   const [allNotes, setAllNotes] = useState<{ id: string; title: string }[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
+  const [view, setView] = useState<"split" | "edit" | "preview">("split");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -165,6 +166,15 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
           className="flex-1 text-lg font-semibold bg-transparent outline-none"
           placeholder="Title"
         />
+        <div className="flex border border-zinc-300 dark:border-zinc-700 rounded overflow-hidden text-[10px]">
+          {(["edit", "split", "preview"] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className={`px-2 py-0.5 ${view === v ? "bg-blue-600 text-white" : "hover:bg-zinc-100 dark:hover:bg-zinc-800"}`}
+            >{v === "edit" ? "編集" : v === "split" ? "分割" : "表示"}</button>
+          ))}
+        </div>
         <span className="text-xs text-zinc-500 hidden sm:inline">{stats.chars}文字 / {stats.words}語</span>
         <span className="text-xs text-zinc-500">{saving ? "保存中..." : "保存済み"}</span>
         <button
@@ -190,23 +200,27 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
           </ul>
         </details>
       )}
-      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 overflow-hidden">
-        <div className="overflow-y-auto border-r border-zinc-200 dark:border-zinc-800">
-          <CodeMirror
-            value={content}
-            height="100%"
-            theme="dark"
-            extensions={[markdown(), completionExtension()]}
-            onChange={(v) => {
-              setContent(v);
-              scheduleSave({ content: v });
-            }}
-            basicSetup={{ lineNumbers: false, foldGutter: false }}
-          />
-        </div>
-        <div className="overflow-y-auto p-4 prose prose-sm dark:prose-invert max-w-none">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-        </div>
+      <div className={`flex-1 grid grid-cols-1 ${view === "split" ? "md:grid-cols-2" : ""} overflow-hidden`}>
+        {view !== "preview" && (
+          <div className="overflow-y-auto border-r border-zinc-200 dark:border-zinc-800">
+            <CodeMirror
+              value={content}
+              height="100%"
+              theme="dark"
+              extensions={[markdown(), completionExtension()]}
+              onChange={(v) => {
+                setContent(v);
+                scheduleSave({ content: v });
+              }}
+              basicSetup={{ lineNumbers: false, foldGutter: false }}
+            />
+          </div>
+        )}
+        {view !== "edit" && (
+          <div className="overflow-y-auto p-4 prose prose-sm dark:prose-invert max-w-none">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+          </div>
+        )}
       </div>
       {backlinks.length > 0 && (
         <div className="border-t border-zinc-200 dark:border-zinc-800 p-3 text-xs">
