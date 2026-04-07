@@ -462,6 +462,7 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
                 { k: "expand", l: "📈 詳細化" },
                 { k: "polish", l: "✏️ 推敲" },
                 { k: "outline", l: "🗂 アウトライン" },
+                { k: "continue", l: "✍️ 続きを書く" },
                 { k: "translate-en", l: "🌐 英訳" },
                 { k: "translate-ja", l: "🌐 和訳" },
               ].map((a) => (
